@@ -3,9 +3,12 @@ kind: Task
 metadata:
   name: cleanup
 spec:
-  description: Cette tâche nettoiera un espace de travail en supprimant tous les fichiers.
+  description: This task will clean up a workspace by deleting all the files.
   workspaces:
     - name: source
+  params:
+    - name: args
+      description: Arguments to pass to nose
   steps:
     - name: remove
       image: alpine:3
@@ -19,19 +22,22 @@ spec:
       script: |
         #!/usr/bin/env sh
         set -eu
-        echo "Suppression de tous les fichiers de ${WORKSPACE_SOURCE_PATH} ..."
-        # Supprimer tout contenu existant du répertoire s'il existe.
+        echo "Removing all files from ${WORKSPACE_SOURCE_PATH} ..."
+        # Delete any existing contents of the directory if it exists.
         #
-        # Nous ne faisons pas simplement "rm -rf ${WORKSPACE_SOURCE_PATH}" car ${WORKSPACE_SOURCE_PATH} pourrait être "/"
-        # ou la racine d'un volume monté.
+        # We don't just "rm -rf ${WORKSPACE_SOURCE_PATH}" because ${WORKSPACE_SOURCE_PATH} might be "/"
+        # or the root of a mounted volume.
         if [ -d "${WORKSPACE_SOURCE_PATH}" ] ; then
-          # Supprimer les fichiers et répertoires non cachés
+          # Delete non-hidden files and directories
           rm -rf "${WORKSPACE_SOURCE_PATH:?}"/*
-          # Supprimer les fichiers et répertoires commençant par . mais en excluant ..
+          # Delete files and directories starting with . but excluding ..
           rm -rf "${WORKSPACE_SOURCE_PATH}"/.[!.]*
-          # Supprimer les fichiers et répertoires commençant par .. plus tout autre caractère
+          # Delete files and directories starting with .. plus any other character
           rm -rf "${WORKSPACE_SOURCE_PATH}"/..?*
+        fi
+
 ---
+
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -41,7 +47,7 @@ spec:
     - name: source
   params:
     - name: args
-      description: Arguments à passer à nose
+      description: Arguments to pass to nose
       type: string
       default: "-v"
   steps:
@@ -49,7 +55,6 @@ spec:
       image: python:3.9-slim
       workingDir: $(workspaces.source.path)
       script: |
-        #!/bin/bash
         set -e
         python -m pip install --upgrade pip wheel
         pip install -r requirements.txt

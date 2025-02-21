@@ -1,0 +1,107 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  creationTimestamp: '2025-02-21T18:57:59Z'
+  generation: 1
+  managedFields:
+    - apiVersion: tekton.dev/v1beta1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:spec':
+          .: {}
+          'f:description': {}
+          'f:params': {}
+          'f:tasks': {}
+          'f:workspaces': {}
+      manager: Mozilla
+      operation: Update
+      time: '2025-02-21T18:57:59Z'
+  name: cicd-pipeline
+  namespace: sn-labs-abdousidibe4
+  resourceVersion: '2032216604'
+  uid: 639e5189-174b-4605-8f58-9a4b29f85e38
+spec:
+  description: >-
+    This pipeline clones tests, lints, builds, and deploys a container to
+    Kubernetes
+  params:
+    - name: app-name
+      type: string
+    - name: build-image
+      type: string
+    - name: repo-url
+      type: string
+    - default: master
+      name: branch
+      type: string
+  tasks:
+    - name: checkout
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.branch)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: pipeline-workspace
+    - name: lint
+      params:
+        - name: image
+          value: 'python:3.9-slim'
+        - name: args
+          value:
+            - '--count'
+            - '--max-complexity=10'
+            - '--max-line-length=127'
+            - '--statistics'
+      runAfter:
+        - checkout
+      taskRef:
+        kind: Task
+        name: flake8
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+    - name: tests
+      params:
+        - name: args
+          value: '-v --with-spec --spec-color'
+      runAfter:
+        - lint
+      taskRef:
+        kind: Task
+        name: nose
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+    - name: build
+      params:
+        - name: IMAGE
+          value: $(params.build-image)
+      runAfter:
+        - tests
+      taskRef:
+        kind: ClusterTask
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+    - name: deploy
+      params:
+        - name: SCRIPT
+          value: oc create deploy $(params.app-name) --image=$(params.build-image)
+      runAfter:
+        - build
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+  workspaces:
+    - description: >
+        This workspace contains the cloned repo files, so they can be read by
+        the
+
+        next task.
+      name: pipeline-workspace

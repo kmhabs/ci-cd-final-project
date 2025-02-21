@@ -1,0 +1,21 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: cicd-pipeline-run
+  namespace: sn-labs-abdousidibe4
+spec:
+  pipelineRef:
+    name: cicd-pipeline
+  params:
+    - name: app-name
+      value: my-app
+    - name: build-image
+      value: quay.io/example/my-app-image
+    - name: repo-url
+      value: https://github.com/kmhabs/ci-cd-final-project.git
+    - name: branch
+      value: main
+  workspaces:
+    - name: pipeline-workspace
+      persistentVolumeClaim:
+        claimName: oc-lab-pvc
